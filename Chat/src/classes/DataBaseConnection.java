@@ -346,9 +346,9 @@ public class DataBaseConnection {
         return null;
     }
     
-    public void addMessage(String message, int userId, int convo) {
+    public void addMessage(String message, int userId, int convo, String type) {
         try {
-            String query = "INSERT INTO messages VALUES(NULL, " + convo + ", " + userId + ", \"" + message + "\", 0)";
+            String query = "INSERT INTO messages VALUES(NULL, " + convo + ", " + userId + ", \"" + message + "\", \"" + type + "\", 0)";
             PreparedStatement ps = con.prepareStatement(query);
             if(!ps.execute())
                 System.out.println("Mensaje enviado");
@@ -359,13 +359,84 @@ public class DataBaseConnection {
         }
     }
     
-    public void readMessage(int convo) {
+    public void readMessage(int convo, int userSent) {
         try {
-            String query = "UPDATE messages SET msg_state = 1 WHERE FK_convo_ID = " + convo;
+            String query = "UPDATE messages SET msg_state = 1 WHERE FK_convo_ID = " + convo + " AND FK_usr_ID <> " + userSent;
             PreparedStatement ps = con.prepareStatement(query);
-            ps.execute();
-        } catch (Exception e) {
+            if(ps.execute())
+                System.out.println("Mensaje leído");
+        } catch (SQLException e) {
             System.out.println("/readMessage: " + e.getMessage());
         }
+    }
+    
+    public ResultSet getUnreadConvos(int convo, int userId, String type) {
+        try {
+            String query = "SELECT FK_usr_ID FROM messages WHERE msg_state = 0 AND msg_type = \"" + type + "\" AND FK_convo_ID = " + convo + " AND FK_usr_ID <> " + userId;
+            PreparedStatement ps = con.prepareStatement(query);
+            return ps.executeQuery();
+        } catch(Exception e) {
+            System.out.println("/getUnreadConvos: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    public void createGroup(String groupName, int creator) {
+        try {
+            int validate = getGroupId(groupName);
+            if (validate == -1){
+                JOptionPane.showMessageDialog(null, "Nombre de grupo no válido");
+                return;
+            }
+            String query  = "INSERT INTO groups VALUES(NULL, \"" + groupName + "\")";
+            PreparedStatement ps = con.prepareStatement(query);
+            if(ps.execute()) {
+                System.out.println("Grupo creado");
+                addGroupMember(validate, creator);
+            } else
+                System.out.println("Error al crear el grupo");
+        } catch (SQLException e) {
+            System.out.println("/createGroup: " + e.getMessage());
+        }
+    }
+    
+    public int getGroupId(String groupName) {
+        try {
+            String query  = "SELECT PK_Group_ID FROM groups WHERE group_name = \"" + groupName + "\"";
+            PreparedStatement ps = con.prepareStatement(query);
+            ResultSet res = ps.executeQuery();            
+            
+            if(res.next())
+                return res.getInt(1);
+            return -1;
+        } catch (SQLException e) {
+            System.out.println("/getGroupId: " + e.getMessage());
+        }
+        return -1;
+    }
+    
+    public void addGroupMember(int groupId, int memberId) {
+        try {
+            String query  = "INSERT INTO conversations VALUES(NULL, " + groupId + ", " + memberId + ")";
+            PreparedStatement ps = con.prepareStatement(query);
+            if(ps.execute())
+                System.out.println("Miembro agregado");
+            else
+                System.out.println("Error al agregar miembro");
+        } catch (SQLException e) {
+            System.out.println("/addGroupMember: " + e.getMessage());
+        }
+    }
+    
+    public ResultSet getGroupsId() {
+        try {
+            String query  = "SELECT PK_Group_ID FROM groups";
+            PreparedStatement ps = con.prepareStatement(query);
+            
+            return ps.executeQuery();
+        } catch (SQLException e) {
+            System.out.println("/getGroupsId: " + e.getMessage());
+        }
+        return null;
     }
 }

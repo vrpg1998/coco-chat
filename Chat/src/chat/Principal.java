@@ -14,6 +14,7 @@ import java.sql.SQLException;
 import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 import classes.ButtonRenderer;
+import java.awt.Font;
 import javax.swing.DefaultListModel;
 import javax.swing.JCheckBox;
 
@@ -27,6 +28,7 @@ public class Principal extends javax.swing.JFrame {
     private int userID;
     private int ACTIVE_CONVO;
     private int ACTIVE_CONVO_USER_ID;
+    private String ACTIVE_CONVO_TYPE;
     private String ACTIVE_CONVO_USERNAME;
     private ResultSet friendRequests;
     private DataBaseConnection con;
@@ -40,6 +42,9 @@ public class Principal extends javax.swing.JFrame {
         friendRequests = null;
         numAmigos = 0;
         ACTIVE_CONVO = 0;
+        ACTIVE_CONVO_USER_ID = 0;
+        ACTIVE_CONVO_TYPE = "";
+        ACTIVE_CONVO_USERNAME = "";
         DefaultListModel m = new DefaultListModel();
         m.setSize(0);
         listConvo.setModel(m);
@@ -48,6 +53,15 @@ public class Principal extends javax.swing.JFrame {
         listOfflineFriends.setModel(m);
         listOnline.setModel(m);
         listOnlineFriends.setModel(m);
+        
+        listConvo.setFont(listConvo.getFont().deriveFont(Font.PLAIN));
+        listGroups.setFont(listConvo.getFont().deriveFont(Font.PLAIN));
+        listOfflineFriends.setFont(listConvo.getFont().deriveFont(Font.PLAIN));
+        listOnlineFriends.setFont(listConvo.getFont().deriveFont(Font.PLAIN));
+        listOffline.setFont(listConvo.getFont().deriveFont(Font.PLAIN));
+        listOnline.setFont(listConvo.getFont().deriveFont(Font.PLAIN));
+        
+        addGroupMember.setVisible(false);
         
         this.addWindowListener(new WindowAdapter() {
             @Override
@@ -124,8 +138,12 @@ public class Principal extends javax.swing.JFrame {
             ResultSet res = con.getOnlineUsers();
             DefaultListModel model = new DefaultListModel();
             while(res.next()) {
-                if(userID != res.getInt("PK_usr_ID"))
-                    model.addElement(res.getString("usr_Name") + "," + res.getInt(1));
+                if(userID != res.getInt("PK_usr_ID")) {
+                    if(checkUnreadMessages(res.getInt("PK_usr_ID")))
+                        model.addElement("<html><b>" + res.getString("usr_Name") + "</b></html>," + res.getInt(1));
+                    else
+                        model.addElement("<html>" + res.getString("usr_Name") + "</html>," + res.getInt(1));
+                }
             }
             listOnline.setModel(model);
         } catch (Exception e) {
@@ -138,7 +156,12 @@ public class Principal extends javax.swing.JFrame {
             ResultSet res = con.getOfflineUsers();
             DefaultListModel model = new DefaultListModel();
             while(res.next()) {
-                model.addElement(res.getString("usr_Name") + "," + res.getInt(1));
+                if(userID != res.getInt("PK_usr_ID")) {
+                    if(checkUnreadMessages(res.getInt("PK_usr_ID")))
+                        model.addElement("<html><b>" + res.getString("usr_Name") + "</b></html>," + res.getInt(1));
+                    else
+                        model.addElement("<html>" + res.getString("usr_Name") + "</html>," + res.getInt(1));
+                }
             }
             listOffline.setModel(model);
         } catch (Exception e) {
@@ -151,7 +174,12 @@ public class Principal extends javax.swing.JFrame {
             ResultSet res = con.getOnlineUsers(userID);
             DefaultListModel model = new DefaultListModel();
             while(res.next()) {
-                model.addElement(res.getString("usr_Name") + "," + res.getInt(1));
+                if(userID != res.getInt("PK_usr_ID")) {
+                    if(checkUnreadMessages(res.getInt("PK_usr_ID")))
+                        model.addElement("<html><b>" + res.getString("usr_Name") + "</b></html>," + res.getInt(1));
+                    else
+                        model.addElement("<html>" + res.getString("usr_Name") + "</html>," + res.getInt(1));
+                }
             }
             listOnlineFriends.setModel(model);
         } catch (Exception e) {
@@ -164,7 +192,12 @@ public class Principal extends javax.swing.JFrame {
             ResultSet res = con.getOfflineUsers(userID);
             DefaultListModel model = new DefaultListModel();
             while(res.next()) {
-                model.addElement(res.getString("usr_Name") + "," + res.getInt(1));
+                if(userID != res.getInt("PK_usr_ID")) {
+                    if(checkUnreadMessages(res.getInt("PK_usr_ID")))
+                        model.addElement("<html><b>" + res.getString("usr_Name") + "</b></html>," + res.getInt(1));
+                    else
+                        model.addElement("<html>" + res.getString("usr_Name") + "</html>," + res.getInt(1));
+                }
             }
             listOfflineFriends.setModel(model);
         } catch (Exception e) {
@@ -188,10 +221,37 @@ public class Principal extends javax.swing.JFrame {
                     
             }
             listConvo.setModel(model);
+            con.readMessage(convo, userID);
         } catch (Exception e) {
             System.out.println("/loadConversation: " + e.getMessage());
         }
         return;
+    }
+    
+    private boolean checkUnreadMessages(int id) {
+        try {
+            int convo = con.getUserConversation(id, userID);
+            ResultSet res = con.getUnreadConvos(convo, userID, "user");
+            
+            while(res.next()) {
+                if(res.getInt(1) == id)
+                    return true;
+            }
+            return false;
+        } catch (Exception e) {
+            System.out.println("/checkUnreadMessages: " + e.getMessage());
+        }
+        return false;
+    }
+    
+    private void loadUsers() {
+        loadOfflineUsers();
+        loadOfflineFriends();
+        loadOnlineUsers();
+        loadOnlineFriends();
+    }
+    
+    private void loadGroups() {
     }
     
     /**
@@ -240,6 +300,7 @@ public class Principal extends javax.swing.JFrame {
         labelChatName = new javax.swing.JLabel();
         jScrollPane2 = new javax.swing.JScrollPane();
         listConvo = new javax.swing.JList<>();
+        addGroupMember = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("WhastCoco");
@@ -537,6 +598,8 @@ public class Principal extends javax.swing.JFrame {
         });
         jScrollPane2.setViewportView(listConvo);
 
+        addGroupMember.setText("Agregar usuario al grupo");
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -550,7 +613,10 @@ public class Principal extends javax.swing.JFrame {
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jButton1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addComponent(jScrollPane2)
-                    .addComponent(labelChatName, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(labelChatName, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(addGroupMember)))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -558,7 +624,11 @@ public class Principal extends javax.swing.JFrame {
             .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(labelChatName, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(labelChatName, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addGroup(layout.createSequentialGroup()
+                        .addGap(0, 0, Short.MAX_VALUE)
+                        .addComponent(addGroupMember)))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 357, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -573,7 +643,8 @@ public class Principal extends javax.swing.JFrame {
 
     private void btn_agregargpoMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_btn_agregargpoMouseClicked
         // TODO add your handling code here:
-        JOptionPane.showMessageDialog(null, "agrega grupo");
+        agregar_gpo view = new agregar_gpo();
+        view.setVisible(true);
     }//GEN-LAST:event_btn_agregargpoMouseClicked
 
     private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
@@ -584,7 +655,7 @@ public class Principal extends javax.swing.JFrame {
         if(messageArea.getText().equals(""))
             return;
         
-        con.addMessage(messageArea.getText(), userID, ACTIVE_CONVO);
+        con.addMessage(messageArea.getText(), userID, ACTIVE_CONVO, ACTIVE_CONVO_TYPE);
         loadConversation(ACTIVE_CONVO_USER_ID, ACTIVE_CONVO_USERNAME);
         messageArea.setText("");
     }//GEN-LAST:event_jButton1ActionPerformed
@@ -604,52 +675,65 @@ public class Principal extends javax.swing.JFrame {
         // TODO add your handling code here:
         String value = (String)listOnline.getModel().getElementAt(listOnline.locationToIndex(evt.getPoint()));
         String[] data = value.split(",");
-        String username = data[0];
+        String username = data[0].replaceAll("</html>", "").replaceAll("<b>", "").replaceAll("</b>", "");
         int userId = Integer.parseInt(data[1]);
         loadConversation(userId, username);
         ACTIVE_CONVO = con.getUserConversation(userId, userID);
         ACTIVE_CONVO_USERNAME = username;
         ACTIVE_CONVO_USER_ID = userId;
+        ACTIVE_CONVO_TYPE = "user";
         labelChatName.setText(username);
+        con.readMessage(ACTIVE_CONVO, userID);
+        loadUsers();
     }//GEN-LAST:event_listOnlineMouseClicked
 
     private void listOfflineMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_listOfflineMouseClicked
         // TODO add your handling code here:
         String value = (String)listOffline.getModel().getElementAt(listOffline.locationToIndex(evt.getPoint()));
         String[] data = value.split(",");
-        String username = data[0];
+        String username = data[0].replaceAll("</html>", "").replaceAll("<b>", "").replaceAll("</b>", "");
         int userId = Integer.parseInt(data[1]);
         loadConversation(userId, username);
         ACTIVE_CONVO = con.getUserConversation(userId, userID);
         ACTIVE_CONVO_USERNAME = username;
         ACTIVE_CONVO_USER_ID = userId;
+        ACTIVE_CONVO_TYPE = "user";
         labelChatName.setText(username);
+        con.readMessage(ACTIVE_CONVO, userID);
+        loadUsers();
+        
     }//GEN-LAST:event_listOfflineMouseClicked
 
     private void listOnlineFriendsMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_listOnlineFriendsMouseClicked
         // TODO add your handling code here:
         String value = (String)listOnlineFriends.getModel().getElementAt(listOnlineFriends.locationToIndex(evt.getPoint()));
         String[] data = value.split(",");
-        String username = data[0];
+        String username = data[0].replaceAll("</html>", "").replaceAll("<b>", "").replaceAll("</b>", "");
         int userId = Integer.parseInt(data[1]);
         loadConversation(userId, username);
         ACTIVE_CONVO = con.getUserConversation(userId, userID);
         ACTIVE_CONVO_USERNAME = username;
         ACTIVE_CONVO_USER_ID = userId;
+        ACTIVE_CONVO_TYPE = "user";
         labelChatName.setText(username);
+        con.readMessage(ACTIVE_CONVO, userID);
+        loadUsers();
     }//GEN-LAST:event_listOnlineFriendsMouseClicked
 
     private void listOfflineFriendsMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_listOfflineFriendsMouseClicked
         // TODO add your handling code here:
         String value = (String)listOfflineFriends.getModel().getElementAt(listOfflineFriends.locationToIndex(evt.getPoint()));
         String[] data = value.split(",");
-        String username = data[0];
+        String username = data[0].replaceAll("</html>", "").replaceAll("<b>", "").replaceAll("</b>", "");
         int userId = Integer.parseInt(data[1]);
         loadConversation(userId, username);
         ACTIVE_CONVO = con.getUserConversation(userId, userID);
         ACTIVE_CONVO_USERNAME = username;
         ACTIVE_CONVO_USER_ID = userId;
+        ACTIVE_CONVO_TYPE = "user";
         labelChatName.setText(username);
+        con.readMessage(ACTIVE_CONVO, userID);
+        loadUsers();
     }//GEN-LAST:event_listOfflineFriendsMouseClicked
 
     /**
@@ -690,6 +774,7 @@ public class Principal extends javax.swing.JFrame {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton addFriend;
+    private javax.swing.JButton addGroupMember;
     private javax.swing.JLabel btn_agregargpo;
     private javax.swing.JButton jButton1;
     private javax.swing.JLabel jLabel1;
