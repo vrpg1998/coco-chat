@@ -306,4 +306,66 @@ public class DataBaseConnection {
         }
         return null;
     }
+    
+    public int addConversation(int userA, int userB) {
+        try {
+            String query = "INSERT INTO conversations VALUES(NULL, " + userA + ", " + userB + ")";
+            PreparedStatement ps = con.prepareStatement(query);
+            ps.execute();
+            
+            return getUserConversation(userA, userB);
+        } catch (SQLException e) {
+            System.out.println("/addConversation: " + e.getMessage());
+        }
+        return -1;
+    }
+    
+    public int getUserConversation(int userA, int userB) {
+        try {
+            String query = "SELECT PK_convo_ID FROM conversations WHERE (FK_usr_A = " + userA + " AND FK_usr_B = " + userB + ") OR (FK_usr_A = " + userB + " AND FK_usr_B = " + userA + ")";
+            PreparedStatement ps = con.prepareStatement(query);
+            ResultSet res = ps.executeQuery();
+            
+            if(!res.next())
+                return addConversation(userA, userB);
+            return res.getInt(1);
+        } catch (SQLException e) {
+            System.out.println("/getUserConversation: " + e.getMessage());
+        }
+        return -1;
+    }
+    
+    public ResultSet getConversation(int convo) {
+        try {
+            String query = "SELECT * FROM messages WHERE FK_convo_ID = " + convo;
+            PreparedStatement ps = con.prepareStatement(query);
+            return ps.executeQuery();
+        } catch (SQLException e) {
+            System.out.println("/getConversation: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    public void addMessage(String message, int userId, int convo) {
+        try {
+            String query = "INSERT INTO messages VALUES(NULL, " + convo + ", " + userId + ", \"" + message + "\", 0)";
+            PreparedStatement ps = con.prepareStatement(query);
+            if(!ps.execute())
+                System.out.println("Mensaje enviado");
+            else
+                System.out.println("Mensaje enviado");
+        } catch(SQLException e) {
+            System.out.println("/addMessage: " + e.getMessage());
+        }
+    }
+    
+    public void readMessage(int convo) {
+        try {
+            String query = "UPDATE messages SET msg_state = 1 WHERE FK_convo_ID = " + convo;
+            PreparedStatement ps = con.prepareStatement(query);
+            ps.execute();
+        } catch (Exception e) {
+            System.out.println("/readMessage: " + e.getMessage());
+        }
+    }
 }

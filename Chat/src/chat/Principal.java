@@ -25,6 +25,9 @@ public class Principal extends javax.swing.JFrame {
 
     private int numAmigos;
     private int userID;
+    private int ACTIVE_CONVO;
+    private int ACTIVE_CONVO_USER_ID;
+    private String ACTIVE_CONVO_USERNAME;
     private ResultSet friendRequests;
     private DataBaseConnection con;
     /**
@@ -36,6 +39,7 @@ public class Principal extends javax.swing.JFrame {
         con = new DataBaseConnection();
         friendRequests = null;
         numAmigos = 0;
+        ACTIVE_CONVO = 0;
         DefaultListModel m = new DefaultListModel();
         m.setSize(0);
         listConvo.setModel(m);
@@ -116,14 +120,12 @@ public class Principal extends javax.swing.JFrame {
     }
     
     private void loadOnlineUsers() {
-        int count = 0;
         try {
             ResultSet res = con.getOnlineUsers();
             DefaultListModel model = new DefaultListModel();
             while(res.next()) {
-                if(userID == res.getInt(1))
-                    return;
-                model.addElement(res.getString("usr_Name") + "," + res.getInt(1));
+                if(userID != res.getInt("PK_usr_ID"))
+                    model.addElement(res.getString("usr_Name") + "," + res.getInt(1));
             }
             listOnline.setModel(model);
         } catch (Exception e) {
@@ -153,7 +155,7 @@ public class Principal extends javax.swing.JFrame {
             }
             listOnlineFriends.setModel(model);
         } catch (Exception e) {
-            System.out.println("/loadOnlineUsers::Principal: " + e.getMessage());
+            System.out.println("/loadOnlineFriends: " + e.getMessage());
         }
     }
     
@@ -168,6 +170,28 @@ public class Principal extends javax.swing.JFrame {
         } catch (Exception e) {
             System.out.println("/loadOfflineUsers::Principal: " + e.getMessage());
         }
+    }
+    
+    private void loadConversation(int friendID, String friendName) {
+        try {
+            int convo = con.getUserConversation(friendID, userID);
+            ResultSet res = con.getConversation(convo);
+            DefaultListModel model = new DefaultListModel();
+            
+            while(res.next()) {
+                String author = "";
+                if(res.getInt("FK_usr_ID") == userID)
+                    author = "Yo: ";
+                else
+                    author = friendName + ": ";
+                model.addElement(author + res.getString("msg_text"));
+                    
+            }
+            listConvo.setModel(model);
+        } catch (Exception e) {
+            System.out.println("/loadConversation: " + e.getMessage());
+        }
+        return;
     }
     
     /**
@@ -289,12 +313,22 @@ public class Principal extends javax.swing.JFrame {
             public int getSize() { return strings.length; }
             public String getElementAt(int i) { return strings[i]; }
         });
+        listOnline.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                listOnlineMouseClicked(evt);
+            }
+        });
         jScrollPane9.setViewportView(listOnline);
 
         listOffline.setModel(new javax.swing.AbstractListModel<String>() {
             String[] strings = { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" };
             public int getSize() { return strings.length; }
             public String getElementAt(int i) { return strings[i]; }
+        });
+        listOffline.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                listOfflineMouseClicked(evt);
+            }
         });
         jScrollPane10.setViewportView(listOffline);
 
@@ -349,12 +383,22 @@ public class Principal extends javax.swing.JFrame {
             public int getSize() { return strings.length; }
             public String getElementAt(int i) { return strings[i]; }
         });
+        listOnlineFriends.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                listOnlineFriendsMouseClicked(evt);
+            }
+        });
         jScrollPane7.setViewportView(listOnlineFriends);
 
         listOfflineFriends.setModel(new javax.swing.AbstractListModel<String>() {
             String[] strings = { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" };
             public int getSize() { return strings.length; }
             public String getElementAt(int i) { return strings[i]; }
+        });
+        listOfflineFriends.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                listOfflineFriendsMouseClicked(evt);
+            }
         });
         jScrollPane12.setViewportView(listOfflineFriends);
 
@@ -533,7 +577,16 @@ public class Principal extends javax.swing.JFrame {
     }//GEN-LAST:event_btn_agregargpoMouseClicked
 
     private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
-        // TODO add your handling code here:
+        // TODO add your handling code here
+        if(ACTIVE_CONVO == 0)
+            return;
+        
+        if(messageArea.getText().equals(""))
+            return;
+        
+        con.addMessage(messageArea.getText(), userID, ACTIVE_CONVO);
+        loadConversation(ACTIVE_CONVO_USER_ID, ACTIVE_CONVO_USERNAME);
+        messageArea.setText("");
     }//GEN-LAST:event_jButton1ActionPerformed
 
     private void addFriendActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addFriendActionPerformed
@@ -544,8 +597,60 @@ public class Principal extends javax.swing.JFrame {
     }//GEN-LAST:event_addFriendActionPerformed
 
     private void tableRequestsMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_tableRequestsMouseClicked
-        // TODO add your handling code here:
+
     }//GEN-LAST:event_tableRequestsMouseClicked
+
+    private void listOnlineMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_listOnlineMouseClicked
+        // TODO add your handling code here:
+        String value = (String)listOnline.getModel().getElementAt(listOnline.locationToIndex(evt.getPoint()));
+        String[] data = value.split(",");
+        String username = data[0];
+        int userId = Integer.parseInt(data[1]);
+        loadConversation(userId, username);
+        ACTIVE_CONVO = con.getUserConversation(userId, userID);
+        ACTIVE_CONVO_USERNAME = username;
+        ACTIVE_CONVO_USER_ID = userId;
+        labelChatName.setText(username);
+    }//GEN-LAST:event_listOnlineMouseClicked
+
+    private void listOfflineMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_listOfflineMouseClicked
+        // TODO add your handling code here:
+        String value = (String)listOffline.getModel().getElementAt(listOffline.locationToIndex(evt.getPoint()));
+        String[] data = value.split(",");
+        String username = data[0];
+        int userId = Integer.parseInt(data[1]);
+        loadConversation(userId, username);
+        ACTIVE_CONVO = con.getUserConversation(userId, userID);
+        ACTIVE_CONVO_USERNAME = username;
+        ACTIVE_CONVO_USER_ID = userId;
+        labelChatName.setText(username);
+    }//GEN-LAST:event_listOfflineMouseClicked
+
+    private void listOnlineFriendsMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_listOnlineFriendsMouseClicked
+        // TODO add your handling code here:
+        String value = (String)listOnlineFriends.getModel().getElementAt(listOnlineFriends.locationToIndex(evt.getPoint()));
+        String[] data = value.split(",");
+        String username = data[0];
+        int userId = Integer.parseInt(data[1]);
+        loadConversation(userId, username);
+        ACTIVE_CONVO = con.getUserConversation(userId, userID);
+        ACTIVE_CONVO_USERNAME = username;
+        ACTIVE_CONVO_USER_ID = userId;
+        labelChatName.setText(username);
+    }//GEN-LAST:event_listOnlineFriendsMouseClicked
+
+    private void listOfflineFriendsMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_listOfflineFriendsMouseClicked
+        // TODO add your handling code here:
+        String value = (String)listOfflineFriends.getModel().getElementAt(listOfflineFriends.locationToIndex(evt.getPoint()));
+        String[] data = value.split(",");
+        String username = data[0];
+        int userId = Integer.parseInt(data[1]);
+        loadConversation(userId, username);
+        ACTIVE_CONVO = con.getUserConversation(userId, userID);
+        ACTIVE_CONVO_USERNAME = username;
+        ACTIVE_CONVO_USER_ID = userId;
+        labelChatName.setText(username);
+    }//GEN-LAST:event_listOfflineFriendsMouseClicked
 
     /**
      * @param args the command line arguments
