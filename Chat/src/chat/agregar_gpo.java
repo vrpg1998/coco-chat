@@ -15,6 +15,7 @@ import javax.swing.JOptionPane;
 public class agregar_gpo extends javax.swing.JFrame {
     
     DataBaseConnection con;
+    private int userID;
 
     /**
      * Creates new form agregar_gpo
@@ -23,6 +24,10 @@ public class agregar_gpo extends javax.swing.JFrame {
         initComponents();
         
         con = new DataBaseConnection();
+    }
+    
+    public void setUserID(int id) {
+        userID = id;
     }
 
     /**
@@ -102,7 +107,7 @@ public class agregar_gpo extends javax.swing.JFrame {
     private void groupAddActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_groupAddActionPerformed
         // TODO add your handling code here:
         if(!groupName.getText().equals("")) {
-            //con.createGroup(groupName.getText());
+            con.createGroup(groupName.getText(), userID);
             this.setVisible(false);
         } else {
             JOptionPane.showMessageDialog(null, "Llene todos los campos");

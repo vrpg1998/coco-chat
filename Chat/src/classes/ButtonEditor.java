@@ -8,7 +8,6 @@ package classes;
 import chat.Principal;
 import java.awt.Component;
 import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import javax.swing.DefaultCellEditor;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -36,7 +35,7 @@ public class ButtonEditor extends DefaultCellEditor {
             String actionString = buttonData[0];
             String requestString = buttonData[1];
             int response;
-            if("Aceptar".equals(actionString)) {
+            if("<html>Aceptar</html>".equals(actionString)) {
                 response = 1;
                 JOptionPane.showMessageDialog(null, "Amigo agregado");
             } else {
@@ -46,7 +45,7 @@ public class ButtonEditor extends DefaultCellEditor {
             con.acceptFriend(Integer.parseInt(requestString), response);
             parent.loadFriendRequests();
             parent.loadFriendRequestsTable();
-            parent.setTabFristIndex();
+            parent.loadUser();
         });
     }
 

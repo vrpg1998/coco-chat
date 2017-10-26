@@ -11,6 +11,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JOptionPane;
@@ -60,6 +61,12 @@ public class DataBaseConnection {
         return -1;
     }
     
+    /**
+     * Obtiene los datos del usuario
+     * 
+     * @param userId Número de identificación del usuario
+     * @return Resultado de la consulta a la base de datos
+     */
     public ResultSet getUser(int userId) {
         try {
             PreparedStatement ps = con.prepareStatement("SELECT * FROM users WHERE PK_usr_ID = " + userId);
@@ -90,6 +97,11 @@ public class DataBaseConnection {
         }
     }
     
+    /**
+     *  Función para cambiar el estado del usuario
+     * 
+     * @param userId Número identificador del usuario
+     */
     public void loginUser(int userId) {
         try {
             String query = "UPDATE users SET usr_state = 1 WHERE PK_usr_ID = " + userId;
@@ -103,6 +115,11 @@ public class DataBaseConnection {
         }
     }
     
+    /**
+     *  Función para cambiar el estado del usuario
+     * 
+     * @param userId Número identificador del usuario
+     */
     public void logoutUser(int userId) {
         try {
             String query = "UPDATE users SET usr_state = 0 WHERE PK_usr_ID = " + userId;
@@ -116,6 +133,12 @@ public class DataBaseConnection {
         }
     }
     
+    /**
+     * Función para obtener los amigos del usuario
+     * 
+     * @param userID Número identificador del usuario
+     * @return 
+     */
     public ResultSet getFriends(int userID) {
         try {
             PreparedStatement ps = con.prepareStatement("SELECT * FROM user_friends WHERE FK_USR_ID = " + userID);
@@ -128,6 +151,12 @@ public class DataBaseConnection {
         return null;
     }
     
+    /**
+     * Función para obtener la cantidad de amigos de un usuario
+     * 
+     * @param userID
+     * @return 
+     */
     public int getFriendsCount(int userID) {
         try {
             PreparedStatement ps = con.prepareStatement("SELECT * FROM user_friends WHERE FK_USR_ID = " + userID);
@@ -384,14 +413,15 @@ public class DataBaseConnection {
     public void createGroup(String groupName, int creator) {
         try {
             int validate = getGroupId(groupName);
-            if (validate == -1){
+            if (validate != -1){
                 JOptionPane.showMessageDialog(null, "Nombre de grupo no válido");
                 return;
             }
             String query  = "INSERT INTO groups VALUES(NULL, \"" + groupName + "\")";
             PreparedStatement ps = con.prepareStatement(query);
-            if(ps.execute()) {
+            if(!ps.execute()) {
                 System.out.println("Grupo creado");
+                validate = getGroupId(groupName);
                 addGroupMember(validate, creator);
             } else
                 System.out.println("Error al crear el grupo");
@@ -415,27 +445,96 @@ public class DataBaseConnection {
         return -1;
     }
     
-    public void addGroupMember(int groupId, int memberId) {
+    public void addGroupMember(int groupID, int userID) {
         try {
-            String query  = "INSERT INTO conversations VALUES(NULL, " + groupId + ", " + memberId + ")";
+            String query = "INSERT INTO group_members VALUES(NULL, " + groupID + ", " + userID + ")";
             PreparedStatement ps = con.prepareStatement(query);
+            
             if(ps.execute())
-                System.out.println("Miembro agregado");
+                System.out.println("Miembro agregado al group");
             else
-                System.out.println("Error al agregar miembro");
+                System.out.println("Error al agregar miembro al grupo");
         } catch (SQLException e) {
             System.out.println("/addGroupMember: " + e.getMessage());
         }
     }
     
-    public ResultSet getGroupsId() {
+    public void addGroupMessage(int groupID, int userID, String message){
         try {
-            String query  = "SELECT PK_Group_ID FROM groups";
+            String query = "INSERT INTO group_messages VALUES (NULL, " + groupID + ", " + userID + ", \"" + message + "\")";
+            PreparedStatement ps = con.prepareStatement(query);
+            if(!ps.execute())
+                System.out.println("Mensaje enviado");
+            else
+                System.out.println("Error al enviar mesaje");
+        } catch (SQLException e) {
+            System.out.println("/addGroupMessage: " + e.getMessage());
+        }
+    }
+    
+    public ResultSet getGroups(int userID) {
+        try {
+            String query = "SELECT groups.PK_Group_ID, groups.group_name FROM group_members JOIN groups WHERE group_members.FK_usr_ID = " + userID;
+            PreparedStatement ps = con.prepareStatement(query);
+            System.out.println(userID);
+            return ps.executeQuery();
+        } catch(SQLException e) {
+          System.out.println("/getGroupsId: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    public ResultSet getGroupsId(int userID) {
+        try {
+            String query = "SELECT FK_grp_ID FROM group_members WHERE FK_usr_ID = " + userID;
+            PreparedStatement ps = con.prepareStatement(query);
+            return ps.executeQuery();
+        } catch(SQLException e) {
+          System.out.println("/getGroupsId: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    private ResultSet getUserReadGrupoMessages(int userID) {
+        try {
+            String query = "SELECT FK_grp_ID, COUNT(FK_grp_ID) FROM group_message_seen WHERE FK_usr_ID = " + userID + " GROUP BY FK_grp_ID";
             PreparedStatement ps = con.prepareStatement(query);
             
             return ps.executeQuery();
-        } catch (SQLException e) {
-            System.out.println("/getGroupsId: " + e.getMessage());
+        } catch(SQLException e) {
+          System.out.println("/getGroupsId: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    private ResultSet getGroupsMessagesCount(int userID) {
+        try {
+            String query = "SELECT FK_grp_ID, COUNT(FK_grp_ID) FROM group_messages WHERE FK_usr_ID = " + userID;
+            PreparedStatement ps = con.prepareStatement(query);
+            return ps.executeQuery();
+        } catch(SQLException e) {
+          System.out.println("/getGroupsId: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    public ArrayList<Integer> getUnreadGroupMessages(int userID) {
+        try {
+            ResultSet groups = getGroupsId(userID);
+            ResultSet messages = getUserReadGrupoMessages(userID);
+            ArrayList<Integer> id = new ArrayList<>();
+            
+            while(messages.next()) {
+                while(groups.next()) {
+                    if(messages.getInt(1) == groups.getInt(1) && messages.getInt(2) != messages.getInt(2)) {
+                        id.add(groups.getInt(2));
+                    }
+                }
+            }
+            
+            return id;
+        } catch(Exception e) {
+            System.out.println("/getUnreadMessages: " + e.getMessage());
         }
         return null;
     }

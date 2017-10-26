@@ -15,6 +15,7 @@ import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 import classes.ButtonRenderer;
 import java.awt.Font;
+import java.util.ArrayList;
 import javax.swing.DefaultListModel;
 import javax.swing.JCheckBox;
 
@@ -81,9 +82,10 @@ public class Principal extends javax.swing.JFrame {
             int requestCount = con.getRequestCount(userID), count = 0;
             Object[][] users = null;
             DefaultTableModel model = new DefaultTableModel();
-            if(!friendRequests.next())
+            if(!friendRequests.next()) {
                 jTabbedPane_usuarios.setEnabledAt(2, false);
-            else {
+                setTabFristIndex();
+            } else {
                 System.out.println(requestCount + "");
                 if(requestCount > 0) {
                     users = new Object[requestCount][3];
@@ -95,8 +97,8 @@ public class Principal extends javax.swing.JFrame {
                     ResultSet user = con.getUser(friendRequests.getInt("FK_sender_id"));
                     user.next();
                     users[count][0] = user.getString("usr_Name");
-                    users[count][1] = "Aceptar," + friendRequests.getInt("PK_request_id");
-                    users[count++][2] = "Rechazar" + friendRequests.getInt("PK_request_id");
+                    users[count][1] = "<html>Aceptar</html>," + friendRequests.getInt("PK_request_id");
+                    users[count++][2] = "<html>Rechazar</html>," + friendRequests.getInt("PK_request_id");
                 } while(friendRequests.next());
                 
                 model.setDataVector(users, new Object[]{"Usuario", "Aceptar", "Rechazar"});
@@ -115,7 +117,7 @@ public class Principal extends javax.swing.JFrame {
         jTabbedPane_usuarios.setSelectedIndex(0);
     }
     
-    private void loadUser() {
+    public void loadUser() {
         con.loginUser(userID);
         numAmigos = con.getFriendsCount(userID);
         loadFriendRequests();
@@ -124,6 +126,7 @@ public class Principal extends javax.swing.JFrame {
         loadOfflineUsers();
         loadOnlineFriends();
         loadOfflineFriends();
+        loadGroups();
         
         if(numAmigos == -1)
             JOptionPane.showMessageDialog(null, "Error. Reinicie la aplicación.");
@@ -216,7 +219,7 @@ public class Principal extends javax.swing.JFrame {
                 if(res.getInt("FK_usr_ID") == userID)
                     author = "Yo: ";
                 else
-                    author = friendName + ": ";
+                    author = ACTIVE_CONVO_USERNAME + ": ";
                 model.addElement(author + res.getString("msg_text"));
                     
             }
@@ -249,9 +252,35 @@ public class Principal extends javax.swing.JFrame {
         loadOfflineFriends();
         loadOnlineUsers();
         loadOnlineFriends();
+        loadGroups();
     }
     
     private void loadGroups() {
+        try {
+            DefaultListModel model = new DefaultListModel();
+            ResultSet res = con.getGroups(userID);
+            while(res.next()) {
+                System.out.println(res.getInt(1));
+                ArrayList<Integer> id = con.getUnreadGroupMessages(userID);
+                if(id.size() == 0)
+                    model.addElement("<html>" + res.getString(2) + "</html>," + res.getInt(1));
+                for(int i = 0; i < id.size(); i++) {
+                    if(res.getInt(1) == id.get(i))
+                        model.addElement("<html><b>" + res.getString(2) + "</b></html>," + res.getInt(1));
+                    else
+                        model.addElement("<html>" + res.getString(2) + "</html>," + res.getInt(1));
+                }
+            }
+            listGroups.setModel(model);
+        } catch (SQLException e) {
+            System.out.println("/loadGroups: " + e.getMessage());
+        }
+    }
+    
+    public void reloadMessages(int convoId) {
+        if(convoId == ACTIVE_CONVO) {
+            loadConversation(userID, ACTIVE_CONVO_USERNAME);
+        }
     }
     
     /**
@@ -324,6 +353,11 @@ public class Principal extends javax.swing.JFrame {
             String[] strings = { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" };
             public int getSize() { return strings.length; }
             public String getElementAt(int i) { return strings[i]; }
+        });
+        listGroups.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                listGroupsMouseClicked(evt);
+            }
         });
         jScrollPane11.setViewportView(listGroups);
 
@@ -617,7 +651,7 @@ public class Principal extends javax.swing.JFrame {
                         .addComponent(labelChatName, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(addGroupMember)))
-                .addContainerGap())
+                .addGap(10, 10, 10))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -644,7 +678,9 @@ public class Principal extends javax.swing.JFrame {
     private void btn_agregargpoMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_btn_agregargpoMouseClicked
         // TODO add your handling code here:
         agregar_gpo view = new agregar_gpo();
+        view.setUserID(userID);
         view.setVisible(true);
+        loadGroups();
     }//GEN-LAST:event_btn_agregargpoMouseClicked
 
     private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
@@ -735,6 +771,22 @@ public class Principal extends javax.swing.JFrame {
         con.readMessage(ACTIVE_CONVO, userID);
         loadUsers();
     }//GEN-LAST:event_listOfflineFriendsMouseClicked
+
+    private void listGroupsMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_listGroupsMouseClicked
+        // TODO add your handling code here:
+        String value = (String)listOfflineFriends.getModel().getElementAt(listOfflineFriends.locationToIndex(evt.getPoint()));
+        String[] data = value.split(",");
+        String username = data[0].replaceAll("</html>", "").replaceAll("<b>", "").replaceAll("</b>", "");
+        int userId = Integer.parseInt(data[1]);
+        loadConversation(userId, username);
+        ACTIVE_CONVO = con.getUserConversation(userId, userID);
+        ACTIVE_CONVO_USERNAME = username;
+        ACTIVE_CONVO_USER_ID = userId;
+        ACTIVE_CONVO_TYPE = "group";
+        labelChatName.setText(username);
+        con.readMessage(ACTIVE_CONVO, userID);
+        loadUsers();
+    }//GEN-LAST:event_listGroupsMouseClicked
 
     /**
      * @param args the command line arguments
